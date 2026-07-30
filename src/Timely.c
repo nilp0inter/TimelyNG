@@ -1409,13 +1409,40 @@ static void handle_bluetooth(bool connected) {
 // Recolor an alpha icon's opaque pixels to `color` (keeps the antialiased edges),
 // so status icons follow the theme like the text. Color platforms only.
 static void tint_icon(GBitmap *bmp, GColor color) {
-  if (!bmp || gbitmap_get_format(bmp) != GBitmapFormat8Bit) { return; }
-  GRect b = gbitmap_get_bounds(bmp);
-  for (int y = b.origin.y; y < b.origin.y + b.size.h; y++) {
-    GBitmapDataRowInfo ri = gbitmap_get_data_row_info(bmp, y);
-    for (int x = ri.min_x; x <= ri.max_x; x++) {
-      GColor8 *px = (GColor8 *)&ri.data[x];
-      if (px->a != 0) { px->r = color.r; px->g = color.g; px->b = color.b; }
+  if (!bmp) { return; }
+
+  GBitmapFormat format = gbitmap_get_format(bmp);
+  if (format == GBitmapFormat8Bit) {
+    GRect b = gbitmap_get_bounds(bmp);
+    for (int y = b.origin.y; y < b.origin.y + b.size.h; y++) {
+      GBitmapDataRowInfo ri = gbitmap_get_data_row_info(bmp, y);
+      for (int x = ri.min_x; x <= ri.max_x; x++) {
+        GColor8 *px = (GColor8 *)&ri.data[x];
+        if (px->a != 0) {
+          px->r = color.r;
+          px->g = color.g;
+          px->b = color.b;
+        }
+      }
+    }
+    return;
+  }
+
+  int palette_size;
+  switch (format) {
+  case GBitmapFormat1BitPalette: palette_size = 2; break;
+  case GBitmapFormat2BitPalette: palette_size = 4; break;
+  case GBitmapFormat4BitPalette: palette_size = 16; break;
+  default: return;
+  }
+
+  GColor *palette = gbitmap_get_palette(bmp);
+  if (!palette) { return; }
+  for (int i = 0; i < palette_size; i++) {
+    if (palette[i].a != 0) {
+      uint8_t alpha = palette[i].a;
+      palette[i] = color;
+      palette[i].a = alpha;
     }
   }
 }
