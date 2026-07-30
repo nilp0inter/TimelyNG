@@ -124,7 +124,8 @@ module.exports = [
         options: [['Sunday', 0], ['Monday', 1], ['Tuesday', 2], ['Wednesday', 3],
                   ['Thursday', 4], ['Friday', 5], ['Saturday', 6]] },
       { key: 'cal_week_pattern', label: 'Weeks shown', type: 'select', def: 0,
-        options: [['Previous + next', 0], ['Last two weeks', 1], ['Next two weeks', 2]] }
+        options: [['Previous + next', 0], ['Last two weeks', 1],
+                  ['Next two weeks', 2], ['Previous + two next', 3, 'emery']] }
     ]
   },
   {

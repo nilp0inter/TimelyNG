@@ -14,6 +14,12 @@ in [`PUBLISHING.md`](PUBLISHING.md).
   overlap the battery bar, and multiple icons now show side by side instead
   of a single priority-picked one. Small screens keep the status-bar icon,
   now repositioned clear of the battery bar.
+- Pebble Time 2 adds an Emery-only four-week calendar mode showing the previous,
+  current, and next two weeks without compressing the 22px calendar cells.
+  Fresh Emery installs default to it; existing saved selections and legacy
+  platforms retain their three-week behavior. Clock, weather, complications,
+  and status icons are realigned for the denser layout. Functional Light uses
+  a darker calendar grid; Functional Dark is unchanged.
 
 ## 0.0.6
 

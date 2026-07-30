@@ -10,21 +10,41 @@
 #define CAL_COLS       7
 #define CAL_GAP        1
 #define CAL_LEFT       2
+#define FOUR_WEEK_CENTER_H 20
+#define FOUR_WEEK_TIME_H   56
+#define FOUR_WEEK_BOTTOM_H 18
+#define FOUR_WEEK_CAL_H   110
 
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
-TimelyLayout layout_compute_rows(int width, int height, int has_top, int has_center, int has_bottom) {
+TimelyLayout layout_compute_rows(int width, int height, int has_top,
+                                 int has_center, int has_bottom,
+                                 int calendar_weeks) {
   TimelyLayout L;
-  int stat_h   = has_top    ? STATUSBAR_H : 0;
-  int center_h = has_center ? CENTER_H    : 0;
-  int bottom_h = has_bottom ? BOTTOM_H    : 0;
+  int four_weeks = width >= 180 && calendar_weeks >= 4;
+  int stat_h = has_top ? STATUSBAR_H : 0;
+  int center_h = has_center ? (four_weeks ? FOUR_WEEK_CENTER_H : CENTER_H) : 0;
+  int bottom_h = has_bottom ? (four_weeks ? FOUR_WEEK_BOTTOM_H : BOTTOM_H) : 0;
 
   // Space left for the time/weather band + the calendar after the fixed rows.
   int avail = height - stat_h - center_h - bottom_h;
-  // The clock takes ~42% of that (calendar is the protagonist and keeps the
-  // rest); clamp so the clock font has room without dominating tall screens.
-  int time_h = clampi((avail * 42) / 100, 40, 92);
-  int cal_h  = avail - time_h;
+  int time_h;
+  if (four_weeks) {
+    // The full Emery profile is 56px time/weather + 110px calendar. Space
+    // released by optional rows is split in the original 42:58 proportion.
+    int full_avail = FOUR_WEEK_TIME_H + FOUR_WEEK_CAL_H;
+    int extra = avail > full_avail ? avail - full_avail : 0;
+    time_h = clampi(FOUR_WEEK_TIME_H + (extra * 42) / 100,
+                    FOUR_WEEK_TIME_H, 92);
+    if (avail - time_h < FOUR_WEEK_CAL_H) {
+      time_h = avail - FOUR_WEEK_CAL_H;
+    }
+  } else {
+    // The clock takes ~42% of the flexible area. The calendar is the
+    // protagonist and keeps the rest.
+    time_h = clampi((avail * 42) / 100, 40, 92);
+  }
+  int cal_h = avail - time_h;
 
   int slot_top_h = center_h + time_h + bottom_h;
 
@@ -43,23 +63,25 @@ TimelyLayout layout_compute_rows(int width, int height, int has_top, int has_cen
   L.clock_time = (LayoutRect){ 0, center_h, width - 2, time_h };  // time/weather band
   L.subtext_top = center_h + time_h;                             // BOTTOM row top
 
-  // calendar grid inside slot_bot: 7 columns spanning the width, header + 3 weeks.
+  // Calendar grid inside slot_bot: 7 columns spanning the width, with one
+  // weekday header followed by the effective number of week rows.
   L.cal_cols   = CAL_COLS;
   L.cal_gap    = CAL_GAP;
   L.cal_left   = CAL_LEFT;
   L.cal_cell_w = (width - 2 * CAL_LEFT) / CAL_COLS;
-  L.cal_cell_h = cal_h / 4;
+  L.cal_weeks  = four_weeks ? 4 : 3;
+  L.cal_cell_h = cal_h / (L.cal_weeks + 1);
 
   return L;
 }
 
-// Back-compat default: all three rows present (used by host tests).
+// Back-compat default: all three rows and three calendar weeks.
 TimelyLayout layout_compute(int width, int height) {
-  return layout_compute_rows(width, height, 1, 1, 1);
+  return layout_compute_rows(width, height, 1, 1, 1, 3);
 }
 
 ClockFont clock_font_for(int width, int band_h) {
-  if (width >= 180 && band_h >= 60) { return CLOCK_FONT_ROBOTO_49; }
+  if (width >= 180 && band_h >= 56) { return CLOCK_FONT_ROBOTO_49; }
   if (band_h >= 52) { return CLOCK_FONT_LECO_42; }
   if (band_h >= 44) { return CLOCK_FONT_LECO_38; }
   if (band_h >= 36) { return CLOCK_FONT_LECO_32; }

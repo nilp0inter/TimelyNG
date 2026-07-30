@@ -134,7 +134,12 @@ Pebble.addEventListener("ready", function (e) {
 Pebble.addEventListener("showConfiguration", function () {
     var current = {};
     try { current = JSON.parse(localStorage.getItem("timely_settings") || "{}"); } catch (err) {}
-    var html = buildConfigPage(CONFIG_SPEC, current);
+    var info = Pebble.getActiveWatchInfo ? Pebble.getActiveWatchInfo() : null;
+    var platform = info && info.platform ? info.platform : '';
+    if (current.cal_week_pattern == null && platform === 'emery') {
+        current.cal_week_pattern = 3;
+    }
+    var html = buildConfigPage(CONFIG_SPEC, current, platform);
     // Self-contained page, no server: the watch hands the whole page to the phone.
     // charset=utf-8 (as Clay does) so accented translation strings survive.
     Pebble.openURL("data:text/html;charset=utf-8," + encodeURIComponent(html));

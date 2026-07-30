@@ -15,15 +15,19 @@ typedef struct {
   int cal_cols;
   int cal_cell_w;
   int cal_cell_h;
+  int cal_weeks;
   int cal_left;
   int cal_gap;
 } TimelyLayout;
 
 // Compute the layout for a screen of width x height pixels. The _rows variant
 // takes which optional rows are enabled (TOP status bar / CENTER above-time /
-// BOTTOM above-calendar); disabled rows free their height to the rest.
-TimelyLayout layout_compute_rows(int width, int height, int has_top, int has_center, int has_bottom);
-TimelyLayout layout_compute(int width, int height); // all rows present (default)
+// BOTTOM above-calendar) and the requested number of calendar weeks. Four weeks
+// are only honored on wide Emery geometry; other screens retain three weeks.
+TimelyLayout layout_compute_rows(int width, int height, int has_top,
+                                 int has_center, int has_bottom,
+                                 int calendar_weeks);
+TimelyLayout layout_compute(int width, int height); // all rows, 3 weeks
 
 // Clock font choice as a pure, testable decision (the view maps it to a Pebble
 // FONT_KEY). Scales with the time-band height; the big proportional Roboto is

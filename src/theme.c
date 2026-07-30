@@ -10,7 +10,7 @@ static const Palette PALETTES[THEME_COUNT][2] = {
   { { GColorWhite, GColorBlack, GColorBlack, GColorWhite, GColorBlack, GColorBlack, GColorWhite },
     { GColorBlack, GColorWhite, GColorWhite, GColorBlack, GColorWhite, GColorWhite, GColorBlack } },
   // THEME_FUNCTIONAL — color carries meaning (today / weekend / warn)
-  { { GColorWhite, GColorBlack, GColorJaegerGreen, GColorWhite, GColorRed,  GColorRed, GColorLightGray },
+  { { GColorWhite, GColorBlack, GColorJaegerGreen, GColorWhite, GColorRed,  GColorRed, GColorDarkGray },
     { GColorBlack, GColorWhite, GColorJaegerGreen, GColorWhite, GColorMelon, GColorRed, GColorDarkGray } },
   // THEME_MINIMAL — monochrome + a single accent
   { { GColorWhite, GColorBlack, GColorBlue,          GColorWhite, GColorBlack, GColorBlack, GColorWhite },

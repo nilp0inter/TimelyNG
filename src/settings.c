@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "calendar.h"
 
 static persist s_settings = {
   .version    = 12,
@@ -27,7 +28,11 @@ static persist s_settings = {
 };
 
 static persist_adv_settings s_adv = {
-  .week_pattern = 0,
+#ifdef PBL_PLATFORM_EMERY
+  .week_pattern = CAL_WEEK_PATTERN_FOUR_WEEKS,
+#else
+  .week_pattern = CAL_WEEK_PATTERN_PREVIOUS_NEXT,
+#endif
   .invertStatBar = 0,
   .invertTopSlot = 0,
   .invertBotSlot = 0,

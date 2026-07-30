@@ -2,6 +2,7 @@
 #include "theme.h"
 #include "debug.h"
 #include "ui.h"
+#include "layout.h"
 
 // Single owner of the weather state (default: 999 = "N/A", 'h' = updating glyph).
 static weather_data s_weather = {
@@ -57,9 +58,10 @@ static void weather_render(Layer *me, GContext *ctx) {
       ctx, cond_current, climacons, GRect(2, top, icon_w, gap + 8),
       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   graphics_context_set_text_color(ctx, theme_palette().fg);
+  int temp_offset = layout_get().cal_weeks == 4 ? 6 : 0;
   graphics_draw_text(
       ctx, temp_current, temp_font,
-      GRect(2, top + gap, icon_w + 2, temp_h),
+      GRect(2, top + gap + temp_offset, icon_w + 2, temp_h - temp_offset),
       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   if (debug_get()->general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Weather redrawing: %d, %s", weather_state()->current, weather_state()->condition); }
 }

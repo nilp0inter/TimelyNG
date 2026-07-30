@@ -69,7 +69,7 @@ function renderSched(id, label, modes, modeVal, fromVal, toVal, note) {
   return h;
 }
 
-function renderField(f, current) {
+function renderField(f, current, platform) {
   if (f.type === 'vibe-sched') {
     var vs = Number((current && current.vibe_start) || 0);
     var ve = Number((current && current.vibe_stop) || 0);
@@ -127,6 +127,7 @@ function renderField(f, current) {
       control = '<select ' + attrs + ' data-type="int">';
       for (var i = 0; i < f.options.length; i++) {
         var o = f.options[i];
+        if (o[2] && o[2] !== platform) { continue; }
         control += '<option value="' + esc(o[1]) + '"' +
           (Number(cur) === Number(o[1]) ? ' selected' : '') + '>' + esc(o[0]) + '</option>';
       }
@@ -167,8 +168,9 @@ var CSS = [
   'a{color:#ffb340}',
 ].join('');
 
-function buildConfigPage(spec, current) {
+function buildConfigPage(spec, current, platform) {
   current = current || {};
+  platform = platform || '';
   var body = '';
   // Baseline = the value each control starts at. It is only used to delta the
   // bulky translation strings (trans_*): every other setting is always sent so
@@ -181,7 +183,7 @@ function buildConfigPage(spec, current) {
     body += '<details' + (sec.open === false ? '' : ' open') + '><summary>' + esc(sec.title) + '</summary>';
     for (var i = 0; i < sec.fields.length; i++) {
       var f = sec.fields[i];
-      body += renderField(f, current);
+      body += renderField(f, current, platform);
       if (f.key) { baseline[f.key] = (current[f.key] != null) ? current[f.key] : f.def; }
     }
     body += '</details>';

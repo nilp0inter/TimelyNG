@@ -31,8 +31,8 @@ UTEST(layout, all_rows_emery_200x228) {
 
 // Disabling rows frees their height: the calendar (and clock) grow.
 UTEST(layout, disabling_rows_grows_calendar_144) {
-  TimelyLayout full = layout_compute_rows(144, 168, 1, 1, 1);   // all rows
-  TimelyLayout none = layout_compute_rows(144, 168, 1, 0, 0);   // top only
+  TimelyLayout full = layout_compute_rows(144, 168, 1, 1, 1, 3); // all rows
+  TimelyLayout none = layout_compute_rows(144, 168, 1, 0, 0, 3); // top only
   ASSERT_TRUE(none.slot_bot.h > full.slot_bot.h);               // calendar grew
   ASSERT_TRUE(none.clock_time.h >= full.clock_time.h);          // clock grew (or equal)
   ASSERT_EQ(0, none.clock_date.h);                              // center band collapsed
@@ -40,7 +40,7 @@ UTEST(layout, disabling_rows_grows_calendar_144) {
 
 // No status bar (TOP off) reclaims its band too.
 UTEST(layout, no_statusbar_reclaims_band) {
-  TimelyLayout L = layout_compute_rows(144, 168, 0, 1, 1);
+  TimelyLayout L = layout_compute_rows(144, 168, 0, 1, 1, 3);
   ASSERT_EQ(0, L.statusbar.h);
   ASSERT_EQ(0, L.slot_top.y); // slot_top starts at the very top now
 }
@@ -48,19 +48,53 @@ UTEST(layout, no_statusbar_reclaims_band) {
 // CENTER/BOTTOM bands collapse to zero exactly when their row is off, and the
 // three slot_top bands sum to slot_top.h.
 UTEST(layout, bands_collapse_and_sum) {
-  TimelyLayout a = layout_compute_rows(144, 168, 1, 1, 0); // no bottom
-  ASSERT_EQ(a.slot_top.h, a.subtext_top);                  // zero-height bottom sits at the end
-  TimelyLayout b = layout_compute_rows(144, 168, 1, 0, 1); // no center
+  TimelyLayout a = layout_compute_rows(144, 168, 1, 1, 0, 3); // no bottom
+  ASSERT_EQ(a.slot_top.h, a.subtext_top);                      // zero-height bottom sits at the end
+  TimelyLayout b = layout_compute_rows(144, 168, 1, 0, 1, 3); // no center
   ASSERT_EQ(0, b.clock_date.h);                            // center band gone
   ASSERT_EQ(0, b.clock_time.y);                            // time band starts at top of slot_top
   // time band + bottom band fit inside slot_top
   ASSERT_TRUE(b.clock_time.y + b.clock_time.h <= b.slot_top.h);
 }
 
+UTEST(layout, four_weeks_emery_preserves_22px_cells) {
+  TimelyLayout L = layout_compute_rows(200, 228, 1, 1, 1, 4);
+  ASSERT_EQ(24, L.statusbar.h);
+  ASSERT_EQ(24, L.slot_top.y);
+  ASSERT_EQ(94, L.slot_top.h);          // center 20 + time 56 + bottom 18
+  ASSERT_EQ(118, L.slot_bot.y);
+  ASSERT_EQ(110, L.slot_bot.h);
+  ASSERT_EQ(20, L.clock_date.h);
+  ASSERT_EQ(20, L.clock_time.y);
+  ASSERT_EQ(56, L.clock_time.h);
+  ASSERT_EQ(76, L.subtext_top);
+  ASSERT_EQ(4, L.cal_weeks);
+  ASSERT_EQ(22, L.cal_cell_h);
+  ASSERT_EQ(CLOCK_FONT_ROBOTO_49, clock_font_for(200, L.clock_time.h));
+  ASSERT_EQ(40, weather_glyph_size_for(200, L.clock_time.h));
+}
+
+UTEST(layout, four_week_request_keeps_legacy_geometry) {
+  TimelyLayout normal = layout_compute(144, 168);
+  TimelyLayout requested = layout_compute_rows(144, 168, 1, 1, 1, 4);
+  ASSERT_EQ(3, requested.cal_weeks);
+  ASSERT_EQ(normal.slot_top.h, requested.slot_top.h);
+  ASSERT_EQ(normal.slot_bot.h, requested.slot_bot.h);
+  ASSERT_EQ(normal.cal_cell_h, requested.cal_cell_h);
+}
+
+UTEST(layout, four_week_optional_rows_never_compress_calendar) {
+  TimelyLayout L = layout_compute_rows(200, 228, 1, 0, 0, 4);
+  ASSERT_EQ(4, L.cal_weeks);
+  ASSERT_TRUE(L.cal_cell_h >= 22);
+  ASSERT_TRUE(L.clock_time.h >= 56);
+}
+
 // Pure clock-font selection: scales with band height; Roboto only on wide+tall.
 UTEST(clockfont, scales_with_band_and_width) {
   ASSERT_EQ(CLOCK_FONT_ROBOTO_49, clock_font_for(200, 65)); // emery, tall band
-  ASSERT_EQ(CLOCK_FONT_LECO_42,   clock_font_for(200, 55)); // wide but shorter -> LECO
+  ASSERT_EQ(CLOCK_FONT_ROBOTO_49, clock_font_for(200, 56)); // four-week Emery
+  ASSERT_EQ(CLOCK_FONT_LECO_42,   clock_font_for(200, 55)); // below fit threshold
   ASSERT_EQ(CLOCK_FONT_LECO_42,   clock_font_for(144, 70)); // narrow never gets Roboto
   ASSERT_EQ(CLOCK_FONT_LECO_38,   clock_font_for(144, 49)); // 144 default band
   ASSERT_EQ(CLOCK_FONT_LECO_32,   clock_font_for(144, 40));

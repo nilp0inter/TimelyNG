@@ -9,8 +9,9 @@ CalGrid calendar_build(int year, int mon, int mday, int wday,
 
   int show_last = 1, show_next = 1;
   switch (week_pattern) {
-    case 1: show_last = 2; show_next = 0; break;
-    case 2: show_last = 0; show_next = 2; break;
+    case CAL_WEEK_PATTERN_LAST_TWO: show_last = 2; show_next = 0; break;
+    case CAL_WEEK_PATTERN_NEXT_TWO: show_last = 0; show_next = 2; break;
+    case CAL_WEEK_PATTERN_FOUR_WEEKS: show_next = 2; break;
     default: break;
   }
 

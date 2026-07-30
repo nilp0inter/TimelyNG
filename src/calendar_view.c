@@ -35,7 +35,7 @@ static void calendar_render(Layer *me, GContext* ctx) {
 // ---------------------------
 
 
-    int weeks = 3;  // always display 3 weeks: previous, current, next
+    int weeks = L.cal_weeks;
 
     // Use the palette's subdued grid role on color displays. Monochrome
     // platforms cannot lower contrast without losing the one-pixel grid.

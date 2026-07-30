@@ -18,7 +18,7 @@
  *
  * DESCRIPTION
  *  This watchface shows the current date and current time in the top 'half',
- *    and then a small calendar w/ 3 weeks: last, current, and next week, in the bottom 'half'
+ *    and then a configurable multi-week calendar in the bottom 'half'
  *  The statusbar at the top shows the connection status, charging, and battery level - and it will vibrate on link lost.
  *  The settings for the face are configurable using the new PebbleKit JS configuration page
  * END DESCRIPTION Section
@@ -261,7 +261,13 @@ static void compute_layout(int w, int h) {
   int has_top    = adv_settings_get()->showStatus != 0;
   int has_center = settings_get()->slot_ctr_l || settings_get()->slot_ctr_r;
   int has_bottom = settings_get()->show_week  || settings_get()->show_am_pm;
-  TimelyLayout L = layout_compute_rows(w, h, has_top, has_center, has_bottom);
+  int calendar_weeks =
+      w >= 180 &&
+              adv_settings_get()->week_pattern == CAL_WEEK_PATTERN_FOUR_WEEKS
+          ? 4
+          : 3;
+  TimelyLayout L = layout_compute_rows(
+      w, h, has_top, has_center, has_bottom, calendar_weeks);
   DEVICE_WIDTH = w; DEVICE_HEIGHT = h;
   LAYOUT_STAT = L.statusbar.y;
   LAYOUT_SLOT_TOP = L.slot_top.y;
@@ -818,12 +824,14 @@ void apply_center(void) {
 void apply_bottom(void) {
   if (!week_layer || !ampm_layer) { return; }
   int voff = uses_emery_typography()
-                 ? 0
+                 ? (layout_get().cal_weeks == 4 ? -6 : 0)
                  : (strcmp(lang_gen_get()->language, "RU") == 0 ? -2 : 0);
+  int height = layout_get().cal_weeks == 4 ? 22 : REL_CLOCK_SUBTEXT_HEIGHT;
   layout_two_slots(
       week_layer, ampm_layer, settings_get()->show_week,
-      settings_get()->show_am_pm, REL_CLOCK_SUBTEXT_TOP + voff,
-      REL_CLOCK_SUBTEXT_HEIGHT, COMPLICATION_BOTTOM);
+      settings_get()->show_am_pm,
+      LAYOUT_SLOT_TOP + REL_CLOCK_SUBTEXT_TOP + voff,
+      height, COMPLICATION_BOTTOM);
 }
 
 // The two status-bar slots also draw from the unified menu; battery/connection
@@ -862,6 +870,10 @@ static void batt_box_geom(bool is_right, bool with_icon, int *bx, int *bw) {
 // drawn by battery_layer with the % centred inside), text-only, or icon+text.
 // Other content shows its icon (if any) on the outer edge with the value beside.
 
+static int status_icon_top(void) {
+  return uses_emery_typography() ? 6 : 4;
+}
+
 static void apply_stat_slot(TextLayer *txt, BitmapLayer *icon, uint8_t content, bool is_right) {
   int half = DEVICE_WIDTH / 2;
   Layer *il = bitmap_layer_get_layer(icon);
@@ -875,7 +887,8 @@ static void apply_stat_slot(TextLayer *txt, BitmapLayer *icon, uint8_t content, 
       bitmap_layer_set_bitmap(icon, stat_slot_icon(content));
       layer_set_hidden(il, false);
       layer_set_frame(
-          il, GRect(is_right ? DEVICE_WIDTH - 18 : 2, 4, 16, 16));
+          il, GRect(is_right ? DEVICE_WIDTH - 18 : 2,
+                    status_icon_top(), 16, 16));
     } else {
       layer_set_hidden(il, true);
     }
@@ -891,11 +904,11 @@ static void apply_stat_slot(TextLayer *txt, BitmapLayer *icon, uint8_t content, 
     bitmap_layer_set_bitmap(icon, bmp);
     layer_set_hidden(il, false);
     if (is_right) {
-      layer_set_frame(il, GRect(DEVICE_WIDTH - 18, 4, 16, 16));
+      layer_set_frame(il, GRect(DEVICE_WIDTH - 18, status_icon_top(), 16, 16));
       text_layer_set_text_alignment(txt, GTextAlignmentRight);
       layer_set_frame(tl, GRect(half, 2, DEVICE_WIDTH - 20 - half, 22));
     } else {
-      layer_set_frame(il, GRect(2, 4, 16, 16));
+      layer_set_frame(il, GRect(2, status_icon_top(), 16, 16));
       text_layer_set_text_alignment(txt, GTextAlignmentLeft);
       layer_set_frame(tl, GRect(20, 2, half - 22, 22));
     }
@@ -926,7 +939,7 @@ static void apply_stat_single(uint8_t content) {
     int gx = DEVICE_WIDTH / 2 - 27;           // ~half the icon+value group width
     bitmap_layer_set_bitmap(bmp_phone_layer, bmp);
     layer_set_hidden(il, false);
-    layer_set_frame(il, GRect(gx, 4, 16, 16));
+    layer_set_frame(il, GRect(gx, status_icon_top(), 16, 16));
     text_layer_set_text_alignment(txt, GTextAlignmentLeft);
     layer_set_frame(
         tl, GRect(gx + 18, 2, DEVICE_WIDTH - (gx + 18) - 2, 22));
@@ -1041,11 +1054,20 @@ static void refresh_status_tray(void) {
 }
 
 void position_time_layer() {
-  // The clock and the weather both live in the time band; seat them on it so the
-  // weather is vertically centred against the time instead of floating above.
+  // Four-week Emery seats the clock toward the visual centre while leaving
+  // the weather block independently adjustable within the shared time band.
   ensure_climacons(weather_glyph_size_for(DEVICE_WIDTH, REL_CLOCK_TIME_HEIGHT));
-  layer_set_frame( text_layer_get_layer(time_layer), GRect(REL_CLOCK_TIME_LEFT, REL_CLOCK_TIME_TOP, DEVICE_WIDTH, REL_CLOCK_TIME_HEIGHT) );
-  weather_set_frame( GRect(REL_CLOCK_TIME_LEFT, REL_CLOCK_TIME_TOP, DEVICE_WIDTH, REL_CLOCK_TIME_HEIGHT) );
+  bool four_weeks = layout_get().cal_weeks == 4;
+  int clock_offset = four_weeks ? -4 : 0;
+  int weather_offset_x = four_weeks ? 8 : 0;
+  layer_set_frame(
+      text_layer_get_layer(time_layer),
+      GRect(REL_CLOCK_TIME_LEFT + clock_offset,
+            REL_CLOCK_TIME_TOP + clock_offset,
+            DEVICE_WIDTH, REL_CLOCK_TIME_HEIGHT));
+  weather_set_frame(
+      GRect(REL_CLOCK_TIME_LEFT + weather_offset_x, REL_CLOCK_TIME_TOP,
+            DEVICE_WIDTH, REL_CLOCK_TIME_HEIGHT));
   refresh_status_tray(); // the tray sits on the band's bottom edge
 }
 
@@ -1691,7 +1713,7 @@ static void window_load(Window *window) {
 
   week_layer = text_layer_create( GRect(2, REL_CLOCK_SUBTEXT_TOP, DEVICE_WIDTH / 2 - 4, 22) ); // left half
   set_layer_attr_sfont(week_layer, FONT_KEY_GOTHIC_18, GTextAlignmentLeft);
-  layer_add_child(datetime_layer, text_layer_get_layer(week_layer));
+  layer_add_child(window_layer, text_layer_get_layer(week_layer));
   if ( settings_get()->show_week == 0 ) {
     layer_set_hidden(text_layer_get_layer(week_layer), true);
   }
@@ -1704,7 +1726,7 @@ static void window_load(Window *window) {
 
   ampm_layer = text_layer_create( GRect(DEVICE_WIDTH / 2 + 2, REL_CLOCK_SUBTEXT_TOP, DEVICE_WIDTH / 2 - 4, 22) ); // right half
   set_layer_attr_sfont(ampm_layer, FONT_KEY_GOTHIC_18, GTextAlignmentRight);
-  layer_add_child(datetime_layer, text_layer_get_layer(ampm_layer));
+  layer_add_child(window_layer, text_layer_get_layer(ampm_layer));
   if ( settings_get()->show_am_pm == 0 ) {
     layer_set_hidden(text_layer_get_layer(ampm_layer), true);
   }
@@ -2123,7 +2145,8 @@ void in_configuration_handler(DictionaryIterator *received, void *context) {
 
     // AK_CAL_WEEK_PATTERN == which weeks are shown in calendar (last,current,next - etc.)
     Tuple *week_pattern = dict_find(received, AK_CAL_WEEK_PATTERN);
-    if (week_pattern != NULL) {
+    if (week_pattern != NULL &&
+        week_pattern->value->uint8 <= CAL_WEEK_PATTERN_FOUR_WEEKS) {
       adv_settings_get()->week_pattern = week_pattern->value->uint8;
     }
 
