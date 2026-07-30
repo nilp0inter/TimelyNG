@@ -41,6 +41,11 @@ static Layer *slot_top;
 static Layer *slot_bot;
 static GFont unifont_16;
 static GFont unifont_16_bold;
+static GFont unifont_18;
+static GFont unifont_18_bold;
+static GFont atkinson_medium_16;
+static GFont atkinson_medium_18;
+static GFont atkinson_extrabold_18;
 GFont cal_normal;
 GFont cal_bold;
 GFont climacons;
@@ -246,6 +251,7 @@ static int REL_CLOCK_TIME_LEFT = 0;
 static int REL_CLOCK_TIME_TOP = 7;
 static int REL_CLOCK_TIME_HEIGHT = 60;
 static int REL_CLOCK_SUBTEXT_TOP = 56;
+static int REL_CLOCK_SUBTEXT_HEIGHT = 22;
 static int CAL_WIDTH  = 20; // calendar column width (recomputed at runtime)
 static int CAL_HEIGHT = 18; // calendar row height   (recomputed at runtime)
 
@@ -272,6 +278,7 @@ static void compute_layout(int w, int h) {
   REL_CLOCK_TIME_TOP = L.clock_time.y;
   REL_CLOCK_TIME_HEIGHT = L.clock_time.h;
   REL_CLOCK_SUBTEXT_TOP = L.subtext_top;
+  REL_CLOCK_SUBTEXT_HEIGHT = L.slot_top.h - L.subtext_top;
   CAL_WIDTH = L.cal_cell_w;
   CAL_HEIGHT = L.cal_cell_h;
   layout_store(L);
@@ -687,38 +694,136 @@ void update_slot_text(TextLayer *layer, uint8_t content) {
   }
 }
 
+typedef enum {
+  COMPLICATION_CENTER,
+  COMPLICATION_BOTTOM,
+  COMPLICATION_STATUS,
+} ComplicationRole;
+
+static bool uses_emery_typography(void) {
+  return DEVICE_WIDTH >= 180;
+}
+
+static bool complication_font_fits(TextLayer *layer, GFont font) {
+  const char *text = text_layer_get_text(layer);
+  int width = layer_get_bounds(text_layer_get_layer(layer)).size.w;
+  return !text || graphics_text_layout_get_content_size(
+                      text, font, GRect(0, 0, 1000, 50),
+                      GTextOverflowModeTrailingEllipsis,
+                      GTextAlignmentLeft).w <= width;
+}
+
+static void fit_complication_font(TextLayer *layer, ComplicationRole role) {
+  if (!layer) { return; }
+
+  if (!uses_emery_typography()) {
+    text_layer_set_font(
+        layer,
+        fonts_get_system_font(role == COMPLICATION_CENTER
+                                  ? FONT_KEY_GOTHIC_24
+                                  : FONT_KEY_GOTHIC_18));
+    return;
+  }
+
+  text_layer_set_overflow_mode(layer, GTextOverflowModeTrailingEllipsis);
+  if (strcmp(lang_gen_get()->language, "RU") == 0) {
+    text_layer_set_font(layer, unifont_18);
+    return;
+  }
+
+  GFont fonts[2] = {
+    atkinson_medium_18,
+    atkinson_medium_16,
+  };
+  for (int i = 0; i < 2; i++) {
+    if (complication_font_fits(layer, fonts[i])) {
+      text_layer_set_font(layer, fonts[i]);
+      return;
+    }
+  }
+
+  text_layer_set_font(layer, atkinson_medium_16);
+}
+
+static void fit_complication_pair(
+    TextLayer *left, TextLayer *right, ComplicationRole role) {
+  if (!uses_emery_typography()
+      || strcmp(lang_gen_get()->language, "RU") == 0) {
+    fit_complication_font(left, role);
+    fit_complication_font(right, role);
+    return;
+  }
+
+  text_layer_set_overflow_mode(left, GTextOverflowModeTrailingEllipsis);
+  text_layer_set_overflow_mode(right, GTextOverflowModeTrailingEllipsis);
+  GFont fonts[2] = {
+    atkinson_medium_18,
+    atkinson_medium_16,
+  };
+  for (int i = 0; i < 2; i++) {
+    if (complication_font_fits(left, fonts[i])
+        && complication_font_fits(right, fonts[i])) {
+      text_layer_set_font(left, fonts[i]);
+      text_layer_set_font(right, fonts[i]);
+      return;
+    }
+  }
+
+  text_layer_set_font(left, atkinson_medium_16);
+  text_layer_set_font(right, atkinson_medium_16);
+}
+
 // Lay out a two-slot complication row at (top,h): both set -> halves; one set ->
 // full-width centered in the left layer; none -> both hidden.
-static void layout_two_slots(TextLayer *l, TextLayer *r, uint8_t cl, uint8_t cr, int top, int h) {
+static void layout_two_slots(TextLayer *l, TextLayer *r, uint8_t cl, uint8_t cr,
+                             int top, int h, ComplicationRole role) {
   int half = DEVICE_WIDTH / 2;
   Layer *ll = text_layer_get_layer(l), *rl = text_layer_get_layer(r);
   if (cl && cr) {
-    layer_set_frame(ll, GRect(2, top, half - 4, h));        text_layer_set_text_alignment(l, GTextAlignmentLeft);
-    layer_set_frame(rl, GRect(half + 2, top, half - 4, h)); text_layer_set_text_alignment(r, GTextAlignmentRight);
-    layer_set_hidden(ll, false); layer_set_hidden(rl, false);
-    update_slot_text(l, cl); update_slot_text(r, cr);
+    layer_set_frame(ll, GRect(2, top, half - 4, h));
+    text_layer_set_text_alignment(l, GTextAlignmentLeft);
+    layer_set_frame(rl, GRect(half + 2, top, half - 4, h));
+    text_layer_set_text_alignment(r, GTextAlignmentRight);
+    layer_set_hidden(ll, false);
+    layer_set_hidden(rl, false);
+    update_slot_text(l, cl);
+    update_slot_text(r, cr);
+    fit_complication_pair(l, r, role);
   } else if (cl || cr) {
-    layer_set_frame(ll, GRect(2, top, DEVICE_WIDTH - 4, h)); text_layer_set_text_alignment(l, GTextAlignmentCenter);
-    layer_set_hidden(ll, false); layer_set_hidden(rl, true);
+    layer_set_frame(ll, GRect(2, top, DEVICE_WIDTH - 4, h));
+    text_layer_set_text_alignment(l, GTextAlignmentCenter);
+    layer_set_hidden(ll, false);
+    layer_set_hidden(rl, true);
     update_slot_text(l, cl ? cl : cr);
+    fit_complication_font(l, role);
   } else {
-    layer_set_hidden(ll, true); layer_set_hidden(rl, true);
+    layer_set_hidden(ll, true);
+    layer_set_hidden(rl, true);
   }
 }
 
 void apply_center(void) {
   if (!date_layer || !ctr_r_layer) { return; } // not built yet
-  int voff = (strcmp(lang_gen_get()->language, "RU") == 0)
-             ? (showing_statusbar ? -4 : 0) : (showing_statusbar ? -9 : -5);
-  layout_two_slots(date_layer, ctr_r_layer, settings_get()->slot_ctr_l, settings_get()->slot_ctr_r,
-                   REL_CLOCK_DATE_TOP + voff, REL_CLOCK_DATE_HEIGHT);
+  int voff = uses_emery_typography()
+                 ? 0
+                 : ((strcmp(lang_gen_get()->language, "RU") == 0)
+                        ? (showing_statusbar ? -4 : 0)
+                        : (showing_statusbar ? -9 : -5));
+  layout_two_slots(
+      date_layer, ctr_r_layer, settings_get()->slot_ctr_l,
+      settings_get()->slot_ctr_r, REL_CLOCK_DATE_TOP + voff,
+      REL_CLOCK_DATE_HEIGHT, COMPLICATION_CENTER);
 }
 
 void apply_bottom(void) {
   if (!week_layer || !ampm_layer) { return; }
-  int voff = (strcmp(lang_gen_get()->language, "RU") == 0) ? -2 : 0;
-  layout_two_slots(week_layer, ampm_layer, settings_get()->show_week, settings_get()->show_am_pm,
-                   REL_CLOCK_SUBTEXT_TOP + voff, 22);
+  int voff = uses_emery_typography()
+                 ? 0
+                 : (strcmp(lang_gen_get()->language, "RU") == 0 ? -2 : 0);
+  layout_two_slots(
+      week_layer, ampm_layer, settings_get()->show_week,
+      settings_get()->show_am_pm, REL_CLOCK_SUBTEXT_TOP + voff,
+      REL_CLOCK_SUBTEXT_HEIGHT, COMPLICATION_BOTTOM);
 }
 
 // The two status-bar slots also draw from the unified menu; battery/connection
@@ -756,6 +861,7 @@ static void batt_box_geom(bool is_right, bool with_icon, int *bx, int *bw) {
 // Render one status-bar slot. Battery content honours batt_style: bar (outline
 // drawn by battery_layer with the % centred inside), text-only, or icon+text.
 // Other content shows its icon (if any) on the outer edge with the value beside.
+
 static void apply_stat_slot(TextLayer *txt, BitmapLayer *icon, uint8_t content, bool is_right) {
   int half = DEVICE_WIDTH / 2;
   Layer *il = bitmap_layer_get_layer(icon);
@@ -768,13 +874,15 @@ static void apply_stat_slot(TextLayer *txt, BitmapLayer *icon, uint8_t content, 
     if (with_icon) {
       bitmap_layer_set_bitmap(icon, stat_slot_icon(content));
       layer_set_hidden(il, false);
-      layer_set_frame(il, GRect(is_right ? DEVICE_WIDTH - 18 : 2, 4, 16, 16));
+      layer_set_frame(
+          il, GRect(is_right ? DEVICE_WIDTH - 18 : 2, 4, 16, 16));
     } else {
       layer_set_hidden(il, true);
     }
     text_layer_set_text_alignment(txt, GTextAlignmentCenter);
-    layer_set_frame(tl, GRect(bx, 0, bw, 20)); // % in the box, nudged up (was clipping low)
+    layer_set_frame(tl, GRect(bx, 0, bw, 20));
     update_slot_text(txt, content);
+    fit_complication_font(txt, COMPLICATION_STATUS);
     return;
   }
 
@@ -802,6 +910,7 @@ static void apply_stat_slot(TextLayer *txt, BitmapLayer *icon, uint8_t content, 
     }
   }
   update_slot_text(txt, content);
+  fit_complication_font(txt, COMPLICATION_STATUS);
 }
 
 // A lone status complication is centred across the whole bar (the row is
@@ -819,13 +928,15 @@ static void apply_stat_single(uint8_t content) {
     layer_set_hidden(il, false);
     layer_set_frame(il, GRect(gx, 4, 16, 16));
     text_layer_set_text_alignment(txt, GTextAlignmentLeft);
-    layer_set_frame(tl, GRect(gx + 18, 2, DEVICE_WIDTH - (gx + 18) - 2, 22));
+    layer_set_frame(
+        tl, GRect(gx + 18, 2, DEVICE_WIDTH - (gx + 18) - 2, 22));
   } else {                                    // text only, centred full width
     layer_set_hidden(il, true);
     text_layer_set_text_alignment(txt, GTextAlignmentCenter);
     layer_set_frame(tl, GRect(2, 2, DEVICE_WIDTH - 4, 22));
   }
   update_slot_text(txt, content);
+  fit_complication_font(txt, COMPLICATION_STATUS);
 }
 
 // Position the proportional fill (an invert effect, raised above the % text so
@@ -837,8 +948,6 @@ static void set_batt_fill(EffectLayer *fl, int box_x, int box_w, int pct, bool s
   if (pct > 100) { pct = 100; }
   int fillw = (box_w - 2) * pct / 100;
   if (fillw < 1 && pct > 0) { fillw = 1; }
-  // Full interior height (box is y4..20) so the fill has no empty top/bottom
-  // strip and covers the whole % text, keeping it readable when inverted.
   layer_set_frame(l, GRect(box_x + 1, 5, fillw, 14));
   layer_set_hidden(l, false);
   layer_add_child(statusbar, l); // raise to top so it inverts the box + % text
@@ -1043,10 +1152,10 @@ void slot_bot_layer_update_callback(Layer *me, GContext* ctx) {
 // Draw a battery outline + nib for the "bar with %" style; the percentage text
 // is the slot's own TextLayer, centred inside this box.
 static void draw_batt_box(GContext *ctx, int x, int w, bool low, bool nib_left) {
-  graphics_context_set_stroke_color(ctx, low ? theme_palette().warn : theme_palette().fg);
+  graphics_context_set_stroke_color(
+      ctx, low ? theme_palette().warn : theme_palette().fg);
   graphics_draw_rect(ctx, GRect(x, 4, w, 16));
-  // The left slot's nib faces left (toward its icon) so the two read as one unit.
-  graphics_draw_rect(ctx, GRect(nib_left ? x - 2 : x + w, 4 + 5, 2, 6));
+  graphics_draw_rect(ctx, GRect(nib_left ? x - 2 : x + w, 9, 2, 6));
 }
 
 void battery_layer_update_callback(Layer *me, GContext* ctx) {
@@ -1339,24 +1448,37 @@ static void apply_palette(void) {
 }
 
 static void set_unifont() {
-  if ( strcmp(lang_gen_get()->language,"RU") == 0 ) { // Unicode font w/ Cyrillic characters
-    // set fonts...
-    text_layer_set_font(day_layer,unifont_16);
-    text_layer_set_font(text_connection_layer, unifont_16);
-    text_layer_set_font(date_layer, unifont_16);
-    // set fonts, for calendar
-    cal_normal = unifont_16; // fh = 16
-    cal_bold   = unifont_16_bold; // fh = 22 // XXX TODO need a bold unicode/unifont option... maybe invert it or box it or something?
-  } else { // Standard font
-    // set fonts...
-    text_layer_set_font(day_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
-    text_layer_set_font(text_connection_layer,fonts_get_system_font(FONT_KEY_GOTHIC_18));
-    text_layer_set_font(date_layer,fonts_get_system_font(FONT_KEY_GOTHIC_24));
-    // set fonts, for calendar
-    cal_normal = fonts_get_system_font(FONT_KEY_GOTHIC_14); // fh = 16
-    cal_bold   = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD); // fh = 22
+  bool emery = uses_emery_typography();
+  if (strcmp(lang_gen_get()->language, "RU") == 0) {
+    GFont font = emery ? unifont_18 : unifont_16;
+    text_layer_set_font(day_layer, font);
+    text_layer_set_font(week_layer, font);
+    text_layer_set_font(ampm_layer, font);
+    text_layer_set_font(text_connection_layer, font);
+    text_layer_set_font(text_battery_layer, font);
+    text_layer_set_font(date_layer, font);
+    text_layer_set_font(ctr_r_layer, font);
+    cal_normal = font;
+    cal_bold = emery ? unifont_18_bold : unifont_16_bold;
+  } else {
+    GFont center = fonts_get_system_font(
+        emery ? FONT_KEY_GOTHIC_28_BOLD : FONT_KEY_GOTHIC_24);
+    GFont small = fonts_get_system_font(
+        emery ? FONT_KEY_GOTHIC_24 : FONT_KEY_GOTHIC_18);
+    text_layer_set_font(day_layer, small);
+    text_layer_set_font(week_layer, small);
+    text_layer_set_font(ampm_layer, small);
+    text_layer_set_font(text_connection_layer, small);
+    text_layer_set_font(text_battery_layer, small);
+    text_layer_set_font(date_layer, center);
+    text_layer_set_font(ctr_r_layer, center);
+    cal_normal = emery
+                     ? atkinson_medium_18
+                     : fonts_get_system_font(FONT_KEY_GOTHIC_14);
+    cal_bold = emery
+                   ? atkinson_extrabold_18
+                   : fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
   }
-  // set offsets...
   position_connection_layer();
   position_date_layer();
   position_time_layer();
@@ -1419,15 +1541,33 @@ void set_layer_attr_cfont(TextLayer *textlayer, uint32_t FontResHandle, GTextAli
 }
 
 static void window_load(Window *window) {
-
-  unifont_16 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_UNICODE_16));
-  unifont_16_bold = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_UNICODE_BOLD_16));
-  cal_normal = unifont_16;
-  cal_bold   = unifont_16_bold;
-
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
   compute_layout(bounds.size.w, bounds.size.h);
+
+  if (uses_emery_typography()) {
+    unifont_18 = fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_UNICODE_18));
+    unifont_18_bold = fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_UNICODE_BOLD_18));
+    atkinson_medium_16 = fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_ATKINSON_MEDIUM_16));
+    atkinson_medium_18 = fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_ATKINSON_MEDIUM_18));
+    atkinson_extrabold_18 = fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_ATKINSON_EXTRABOLD_18));
+    cal_normal = atkinson_medium_18;
+    cal_bold = atkinson_extrabold_18;
+  } else {
+    unifont_16 = fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_UNICODE_16));
+    unifont_16_bold = fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_UNICODE_BOLD_16));
+    cal_normal = unifont_16;
+    cal_bold = unifont_16_bold;
+  }
+  weather_set_temperature_font(
+      uses_emery_typography() ? atkinson_medium_18 : NULL);
   // Glyph size follows the time band (like the clock font); loads the font too.
   ensure_climacons(weather_glyph_size_for(DEVICE_WIDTH, REL_CLOCK_TIME_HEIGHT));
 

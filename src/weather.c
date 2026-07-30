@@ -16,8 +16,10 @@ weather_data *weather_state(void) { return &s_weather; }
 
 static Layer *s_weather_layer;
 static int s_glyph_size = 40; // climacons px: 28 (narrow) / 40 / 48 (tall wide band)
+static GFont s_temperature_font;
 
 void weather_set_glyph_size(int size) { s_glyph_size = size; }
+void weather_set_temperature_font(GFont font) { s_temperature_font = font; }
 
 static void weather_render(Layer *me, GContext *ctx) {
   static char temp_current[12] = "N/A";
@@ -34,21 +36,31 @@ static void weather_render(Layer *me, GContext *ctx) {
   // The layer IS the time band. The icon-over-temperature block is centred in
   // the band so it lines up with the clock and fills the column (big glyph on
   // wide screens), without spilling into the calendar below.
-  bool compact = (s_glyph_size == 28);
-  GFont temp_font = fonts_get_system_font(compact ? FONT_KEY_GOTHIC_18 : FONT_KEY_GOTHIC_28);
-  int icon_w = compact ? 34 : (s_glyph_size == 48 ? 50 : 42); // climacons box
-  int gap    = compact ? 18 : (s_glyph_size == 48 ? 36 : 32); // temp baseline below icon top
-  int temp_h = compact ? 18 : 28;
+  bool compact = s_glyph_size == 28;
+  bool large = s_glyph_size == 48;
+  // Emery uses the same medium Atkinson face as its other complications.
+  GFont temp_font = s_temperature_font
+                        ? s_temperature_font
+                        : fonts_get_system_font(
+                              compact ? FONT_KEY_GOTHIC_18 : FONT_KEY_GOTHIC_24);
+  int icon_w = compact ? 34 : (large ? 50 : 42);
+  int gap = compact ? 18 : (large ? 35 : 25);
+  int temp_h = compact ? 18 : 29;
   int band_h = layer_get_bounds(me).size.h;
-  int block  = gap + temp_h;           // total visual height of icon+temp
+  int block = gap + temp_h;
   int top = (band_h - block) / 2;
   if (top < 0) { top = 0; }
   // Tint the condition glyph (color platforms, non-Mono theme); the temperature
   // stays the theme color, so restore it afterwards.
   graphics_context_set_text_color(ctx, weather_glyph_color(cond_current[0]));
-  graphics_draw_text(ctx, cond_current, climacons, GRect(2, top, icon_w, gap + 8), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  graphics_draw_text(
+      ctx, cond_current, climacons, GRect(2, top, icon_w, gap + 8),
+      GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   graphics_context_set_text_color(ctx, theme_palette().fg);
-  graphics_draw_text(ctx, temp_current, temp_font, GRect(2, top + gap, icon_w + 2, temp_h + 8), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  graphics_draw_text(
+      ctx, temp_current, temp_font,
+      GRect(2, top + gap, icon_w + 2, temp_h),
+      GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   if (debug_get()->general) { app_log(APP_LOG_LEVEL_DEBUG, __FILE__, __LINE__, "Weather redrawing: %d, %s", weather_state()->current, weather_state()->condition); }
 }
 

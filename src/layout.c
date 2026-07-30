@@ -4,9 +4,9 @@
 // above the time (CENTER), and the band above the calendar (BOTTOM) — each take
 // a fixed slice only when enabled. Whatever is left is shared between the
 // time/weather band and the calendar, so disabling a row makes the rest grow.
-#define STATUSBAR_H   24
-#define CENTER_H      26
-#define BOTTOM_H      22
+#define STATUSBAR_H       24
+#define CENTER_H          26
+#define BOTTOM_H          22
 #define CAL_COLS       7
 #define CAL_GAP        1
 #define CAL_LEFT       2

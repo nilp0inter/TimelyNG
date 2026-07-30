@@ -163,7 +163,8 @@ var CSS = [
   '.bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:10px;padding:11px 14px;',
   'background:#1b1b1de6;border-top:1px solid #333}',
   'button{flex:1;font-size:17px;font-weight:600;border:0;border-radius:8px;padding:13px;color:#fff}',
-  '#cancel{background:#3a3a3d}#save{background:#ff9f0a;color:#1b1b1d}'
+  '#cancel{background:#3a3a3d}#save{background:#ff9f0a;color:#1b1b1d}',
+  'a{color:#ffb340}',
 ].join('');
 
 function buildConfigPage(spec, current) {
@@ -258,6 +259,11 @@ function buildConfigPage(spec, current) {
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>TimelyNG settings</title><style>' + CSS + '</style></head><body>' +
     '<h1>TimelyNG</h1>' + body +
+    '<details><summary>Font license</summary><p class="note">' +
+    'Atkinson Hyperlegible Next font software: Copyright 2020-2024 The Atkinson ' +
+    'Hyperlegible Next Project Authors. Licensed under the ' +
+    '<a href="https://openfontlicense.org/open-font-license-official-text/">' +
+    'SIL Open Font License 1.1</a>.</p></details>' +
     '<div class="bar"><button type="button" id="cancel">Cancel</button>' +
     '<button type="button" id="save">Save</button></div>' +
     '<script>' + script + '<\/script></body></html>';

@@ -80,6 +80,36 @@
         },
         {
           "type": "font",
+          "characterRegex": "[ -~Ѐ-ѠÀ-ÖØ-öø-ÿ…]",
+          "name": "FONT_UNICODE_BOLD_18",
+          "file": "fonts/DejaVuSansCondensed-Bold.ttf"
+        },
+        {
+          "type": "font",
+          "characterRegex": "[ -~Ѐ-ѠÀ-ÖØ-öø-ÿ…]",
+          "name": "FONT_UNICODE_18",
+          "file": "fonts/DejaVuSansCondensed.ttf"
+        },
+        {
+          "type": "font",
+          "characterRegex": "[ -~À-ÖØ-öø-ÿ…]",
+          "name": "FONT_ATKINSON_EXTRABOLD_18",
+          "file": "fonts/AtkinsonHyperlegibleNext-ExtraBold.ttf"
+        },
+        {
+          "type": "font",
+          "characterRegex": "[ -~À-ÖØ-öø-ÿ…]",
+          "name": "FONT_ATKINSON_MEDIUM_16",
+          "file": "fonts/AtkinsonHyperlegibleNext-Medium.ttf"
+        },
+        {
+          "type": "font",
+          "characterRegex": "[ -~À-ÖØ-öø-ÿ…]",
+          "name": "FONT_ATKINSON_MEDIUM_18",
+          "file": "fonts/AtkinsonHyperlegibleNext-Medium.ttf"
+        },
+        {
+          "type": "font",
           "characterRegex": "[ -~]",
           "name": "FONT_CLIMACONS_48",
           "file": "fonts/Climacons.ttf"
@@ -95,6 +125,11 @@
           "characterRegex": "[ -~]",
           "name": "FONT_CLIMACONS_28",
           "file": "fonts/Climacons.ttf"
+        },
+        {
+          "type": "raw",
+          "name": "LICENSE_ATKINSON_OFL",
+          "file": "fonts/OFL-Atkinson-Hyperlegible-Next.txt"
         }
       ]
     },

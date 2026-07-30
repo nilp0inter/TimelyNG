@@ -18,4 +18,5 @@ void weather_destroy(void);
 void weather_set_frame(GRect frame);
 void weather_set_hidden(bool hidden);
 void weather_set_glyph_size(int size);  // climacons px (28/40/48); drives block metrics
+void weather_set_temperature_font(GFont font);
 void weather_mark_dirty(void);

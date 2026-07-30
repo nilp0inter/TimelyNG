@@ -22,7 +22,11 @@ UTEST(layout, all_rows_emery_200x228) {
   ASSERT_EQ(137, L.slot_bot.y);           // 24+113
   ASSERT_EQ(91,  L.slot_bot.h);           // 228-24-113
   ASSERT_EQ(28,  L.cal_cell_w);           // (200-4)/7
+  ASSERT_EQ(22,  L.cal_cell_h);           // 91/4
   ASSERT_EQ(152, L.battery.x);            // 200-48
+  ASSERT_EQ(65,  L.clock_time.h);
+  ASSERT_EQ(CLOCK_FONT_ROBOTO_49, clock_font_for(200, L.clock_time.h));
+  ASSERT_EQ(48, weather_glyph_size_for(200, L.clock_time.h));
 }
 
 // Disabling rows frees their height: the calendar (and clock) grow.
